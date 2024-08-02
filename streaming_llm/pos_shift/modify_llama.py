@@ -77,10 +77,10 @@ def llama_pos_shift_attention_forward(
         key_states = self.k_proj(hidden_states)
         value_states = self.v_proj(hidden_states)
 
-    # FLAG
-    query_states = query_states.view(
+    # q/k/v向量
+    query_states = query_states.view(  # view就是reshape
         bsz, q_len, self.num_heads, self.head_dim
-    ).transpose(1, 2)
+    ).transpose(1, 2)  # transpose是交换两个维度
     key_states = key_states.view(
         bsz, q_len, self.num_key_value_heads, self.head_dim
     ).transpose(1, 2)
@@ -89,6 +89,7 @@ def llama_pos_shift_attention_forward(
     ).transpose(1, 2)
 
     kv_seq_len = key_states.shape[-2]
+    # 处理q: 进行旋转位置编码  TODO: READ
     if past_key_value is not None:
         kv_seq_len += past_key_value[0].shape[-2]
     cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
@@ -97,6 +98,7 @@ def llama_pos_shift_attention_forward(
     query_states = apply_rotary_pos_emb_single(query_states, cos, sin, position_ids)
     ###
 
+    # 处理k,v: 先reuse KV-Cache再进行旋转位置编码  TODO: READ
     if past_key_value is not None:
         # reuse k, v, self_attention
         key_states = torch.cat([past_key_value[0], key_states], dim=2)
@@ -113,6 +115,7 @@ def llama_pos_shift_attention_forward(
     key_states = repeat_kv(key_states, self.num_key_value_groups)
     value_states = repeat_kv(value_states, self.num_key_value_groups)
 
+    # 计算attention score: QK^T
     attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(
         self.head_dim
     )
@@ -130,6 +133,7 @@ def llama_pos_shift_attention_forward(
             )
         attn_weights = attn_weights + attention_mask
 
+    # 计算output: softmax(score)*V
     # upcast attention to fp32
     attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(
         query_states.dtype
@@ -145,6 +149,7 @@ def llama_pos_shift_attention_forward(
     attn_output = attn_output.transpose(1, 2).contiguous()
     attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
 
+    # 多GPU情形处理ouput的张量并行
     if self.config.pretraining_tp > 1:
         attn_output = attn_output.split(
             self.hidden_size // self.config.pretraining_tp, dim=2

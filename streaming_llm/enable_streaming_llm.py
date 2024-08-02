@@ -30,7 +30,7 @@ def enable_streaming_llm(model, start_size, recent_size):
         enable_falcon_pos_shift_attention(model)
     else:
         raise ValueError(f"got {model.config.model_type}")
-    kv_cache = StartRecentKVCache(
+    kv_cache = StartRecentKVCache(  # TODO: READ
         start_size=start_size,
         recent_size=recent_size,
         k_seq_dim=k_seq_dim,
