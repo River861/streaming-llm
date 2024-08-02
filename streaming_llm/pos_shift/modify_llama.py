@@ -39,16 +39,20 @@ def llama_pos_shift_attention_forward(
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
     bsz, q_len, _ = hidden_states.size()
 
-    if self.config.pretraining_tp > 1:
+    if self.config.pretraining_tp > 1:  # Tensor Parallelism
+        # num_heads是attention header的数量，head_dim是q/k/v=W*x后的列数
+        # x: (batch_size, seq_length(tokens), input_dim), W: (head_dim, input_dim) => Wx: (batch_size, seq_length, head_dim)
+        # 所以这里计算的是KV tensors的投影矩阵(W)的切分，要将W划分到不同GPU进行张量并行
         key_value_slicing = (
             self.num_key_value_heads * self.head_dim
         ) // self.config.pretraining_tp
+        # 利用算好的slicing对投影矩阵W进行按行(dim=0)切分(也就是对W的head_dim切分)
         query_slices = self.q_proj.weight.split(
             (self.num_heads * self.head_dim) // self.config.pretraining_tp, dim=0
         )
         key_slices = self.k_proj.weight.split(key_value_slicing, dim=0)
         value_slices = self.v_proj.weight.split(key_value_slicing, dim=0)
-
+        # 切分完模型的计算变成：每个切片(在一个GPU上)进行linear计算，最后最后再拼接起来(也就是对Wx的head_dim拼接)
         query_states = [
             F.linear(hidden_states, query_slices[i])
             for i in range(self.config.pretraining_tp)
@@ -68,10 +72,12 @@ def llama_pos_shift_attention_forward(
         value_states = torch.cat(value_states, dim=-1)
 
     else:
+        # 如果没有多GPU，就直接算q/k/v=Wx即可
         query_states = self.q_proj(hidden_states)
         key_states = self.k_proj(hidden_states)
         value_states = self.v_proj(hidden_states)
 
+    # FLAG
     query_states = query_states.view(
         bsz, q_len, self.num_heads, self.head_dim
     ).transpose(1, 2)
