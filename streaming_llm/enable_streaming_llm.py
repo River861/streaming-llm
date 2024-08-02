@@ -2,6 +2,7 @@ from streaming_llm.kv_cache import StartRecentKVCache
 
 
 def enable_streaming_llm(model, start_size, recent_size):
+    print(f"model type: {model.config.model_type}")
     if "llama" in model.config.model_type:
         k_seq_dim = v_seq_dim = 2
         from streaming_llm.pos_shift.modify_llama import (

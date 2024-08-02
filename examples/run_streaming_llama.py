@@ -93,7 +93,7 @@ def main(args):
     for sample in list_data:
         prompts += sample["turns"]
 
-    if args.enable_streaming:
+    if args.enable_streaming:  # FLAG
         kv_cache = enable_streaming_llm(
             model, start_size=args.start_size, recent_size=args.recent_size
         )
