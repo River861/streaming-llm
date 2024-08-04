@@ -77,7 +77,7 @@ def llama_pos_shift_attention_forward(
         key_states = self.k_proj(hidden_states)
         value_states = self.v_proj(hidden_states)
 
-    # q/k/v向量
+    # q/k/v向量: (batch_size, num_heads, q_len, head_dim)
     query_states = query_states.view(  # view就是reshape
         bsz, q_len, self.num_heads, self.head_dim
     ).transpose(1, 2)  # transpose是交换两个维度
@@ -88,51 +88,51 @@ def llama_pos_shift_attention_forward(
         bsz, q_len, self.num_key_value_heads, self.head_dim
     ).transpose(1, 2)
 
-    kv_seq_len = key_states.shape[-2]  # q_len
-    # 处理q: 进行旋转位置编码  TODO: READ
+    kv_seq_len = key_states.shape[-2]  # seq_len就是q_len
+    # 处理q: 进行旋转位置编码
     if past_key_value is not None:
         kv_seq_len += past_key_value[0].shape[-2]  # 这里加过去KV的q_len，像是在算当前token的position
     cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)  # 根据当前token的position计算位置编码
     ### Shift Pos: query pos is min(cache_size, idx)
     # query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
-    print('\033[94m' + f"Learn: position_ids={position_ids} kv_seq_len={kv_seq_len}" + '\033[0m')
-    query_states = apply_rotary_pos_emb_single(query_states, cos, sin, position_ids)  # TODO: position_ids就是0,1,2,3,...? 验证一下
+    # print('\033[94m' + f"Learn: position_ids={position_ids} kv_seq_len={kv_seq_len}" + '\033[0m')
+    query_states = apply_rotary_pos_emb_single(query_states, cos, sin, position_ids)  # position_ids就是0,1,2,3,...!!! len(position_ids)==kv_seq_len!!!
     ###
 
-    # 处理k,v: 先reuse KV-Cache再进行旋转位置编码  TODO: READ
+    # 处理k,v: 先reuse KV-Cache再进行旋转位置编码
     if past_key_value is not None:
         # reuse k, v, self_attention
-        key_states = torch.cat([past_key_value[0], key_states], dim=2)
+        key_states = torch.cat([past_key_value[0], key_states], dim=2)  # 在q_len维度拼接，其实就是将KV-Cache续上
         value_states = torch.cat([past_key_value[1], value_states], dim=2)
 
-    past_key_value = (key_states, value_states) if use_cache else None
+    past_key_value = (key_states, value_states) if use_cache else None  # 这个past_key_value就是在迭代过程中一直维护的KV-Cache
 
     ### Shift Pos: key pos is the pos in cache
-    key_position_ids = torch.arange(kv_seq_len, device=position_ids.device).unsqueeze(0)
+    key_position_ids = torch.arange(kv_seq_len, device=position_ids.device).unsqueeze(0)  # TODO 这个key_position_ids其实就等于position_ids?
     key_states = apply_rotary_pos_emb_single(key_states, cos, sin, key_position_ids)
     ###
 
     # repeat k/v heads if n_kv_heads < n_heads
-    key_states = repeat_kv(key_states, self.num_key_value_groups)
+    key_states = repeat_kv(key_states, self.num_key_value_groups)  # TODO 什么意思
     value_states = repeat_kv(value_states, self.num_key_value_groups)
 
     # 计算attention score: QK^T
     attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(
-        self.head_dim
+        self.head_dim  # 这个就是公式里的d
     )
 
-    if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):
+    if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):  # TODO 查一下q_len和kv_seq_len啥时候不一样
         raise ValueError(
             f"Attention weights should be of size {(bsz, self.num_heads, q_len, kv_seq_len)}, but is"
             f" {attn_weights.size()}"
         )
 
-    if attention_mask is not None:
+    if attention_mask is not None:  # mask矩阵就是用来让每个token只看到前面tokens的attention
         if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):
             raise ValueError(
                 f"Attention mask should be of size {(bsz, 1, q_len, kv_seq_len)}, but is {attention_mask.size()}"
             )
-        attn_weights = attn_weights + attention_mask
+        attn_weights = attn_weights + attention_mask  # TODO: 为啥是加法?
 
     # 计算output: softmax(score)*V
     # upcast attention to fp32
@@ -147,8 +147,8 @@ def llama_pos_shift_attention_forward(
             f" {attn_output.size()}"
         )
 
-    attn_output = attn_output.transpose(1, 2).contiguous()
-    attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
+    attn_output = attn_output.transpose(1, 2).contiguous()  # contiguous是将tensor中的数据变得内存连续(因为转置/切片会让数据不连续)
+    attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)  # TODO: hidden_size应该就等于head_dim
 
     # 多GPU情形处理ouput的张量并行
     if self.config.pretraining_tp > 1:
