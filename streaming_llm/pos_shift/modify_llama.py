@@ -95,7 +95,7 @@ def llama_pos_shift_attention_forward(
     cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)  # 根据当前token的position计算位置编码
     ### Shift Pos: query pos is min(cache_size, idx)
     # query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
-    print('\033[94m' + f"Learn: position_ids={position_ids}" + '\033[0m')
+    print('\033[94m' + f"Learn: position_ids={position_ids} kv_seq_len={kv_seq_len}" + '\033[0m')
     query_states = apply_rotary_pos_emb_single(query_states, cos, sin, position_ids)  # TODO: position_ids就是0,1,2,3,...? 验证一下
     ###
 
