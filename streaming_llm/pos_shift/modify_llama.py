@@ -88,14 +88,15 @@ def llama_pos_shift_attention_forward(
         bsz, q_len, self.num_key_value_heads, self.head_dim
     ).transpose(1, 2)
 
-    kv_seq_len = key_states.shape[-2]
+    kv_seq_len = key_states.shape[-2]  # q_len
     # 处理q: 进行旋转位置编码  TODO: READ
     if past_key_value is not None:
-        kv_seq_len += past_key_value[0].shape[-2]
-    cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
+        kv_seq_len += past_key_value[0].shape[-2]  # 这里加过去KV的q_len，像是在算当前token的position
+    cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)  # 根据当前token的position计算位置编码
     ### Shift Pos: query pos is min(cache_size, idx)
     # query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
-    query_states = apply_rotary_pos_emb_single(query_states, cos, sin, position_ids)
+    print('\033[94m' + f"Learn: position_ids={position_ids}" + '\033[0m')
+    query_states = apply_rotary_pos_emb_single(query_states, cos, sin, position_ids)  # TODO: position_ids就是0,1,2,3,...? 验证一下
     ###
 
     # 处理k,v: 先reuse KV-Cache再进行旋转位置编码  TODO: READ
