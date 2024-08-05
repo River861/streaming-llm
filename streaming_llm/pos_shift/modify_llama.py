@@ -111,10 +111,13 @@ def llama_pos_shift_attention_forward(
     ### Shift Pos: key pos is the pos in cache
     key_position_ids = torch.arange(kv_seq_len, device=position_ids.device).unsqueeze(0)  # TODO 这个key_position_ids其实就等于position_ids?
     key_states = apply_rotary_pos_emb_single(key_states, cos, sin, key_position_ids)
+    print('\033[94m' + f"\n[llama_pos_shift_attention_forward]: position_ids={position_ids} \nkey_position_ids={key_position_ids}" + '\033[0m')
     ###
 
     # repeat k/v heads if n_kv_heads < n_heads
-    key_states = repeat_kv(key_states, self.num_key_value_groups)  # TODO 什么意思
+    # repeat_kv的作用是让KV tensors在batch_size那一维度进行复制, 复制的数目为num_key_value_groups(就是attention header的数目)
+    # 目的是为了适应多注意力头的计算, 让每个注意力头使用相同的KV tensors
+    key_states = repeat_kv(key_states, self.num_key_value_groups)
     value_states = repeat_kv(value_states, self.num_key_value_groups)
 
     # 计算attention score: QK^T
@@ -122,7 +125,7 @@ def llama_pos_shift_attention_forward(
         self.head_dim  # 这个就是公式里的d
     )
 
-    if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):  # TODO 查一下q_len和kv_seq_len啥时候不一样
+    if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):  # 查一下q_len和kv_seq_len啥时候不一样: 在self-attention上二者是一样长的, 在跨注意力机制上才不一样长(比如机器翻译等)
         raise ValueError(
             f"Attention weights should be of size {(bsz, self.num_heads, q_len, kv_seq_len)}, but is"
             f" {attn_weights.size()}"
@@ -133,7 +136,7 @@ def llama_pos_shift_attention_forward(
             raise ValueError(
                 f"Attention mask should be of size {(bsz, 1, q_len, kv_seq_len)}, but is {attention_mask.size()}"
             )
-        attn_weights = attn_weights + attention_mask  # TODO: 为啥是加法?
+        attn_weights = attn_weights + attention_mask  # 为啥是加法? 因为mask矩阵中0表示不屏蔽, -inf表示屏蔽
 
     # 计算output: softmax(score)*V
     # upcast attention to fp32
