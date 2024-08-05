@@ -171,11 +171,12 @@ def llama_pos_shift_attention_forward(
     if not output_attentions:
         attn_weights = None
 
-    print('\033[94m' + f"greedy_generate: past_key_value type={type(past_key_value)} len={len(past_key_value) if past_key_value is not None else None}" + '\033[0m')
+    # print('\033[94m' + f"greedy_generate: past_key_value type={type(past_key_value)} len={len(past_key_value) if past_key_value is not None else None}" + '\033[0m')
     return attn_output, attn_weights, past_key_value  # (attention层输出, attention score, 前面tokens的KV tensors)
 
 
 def enable_llama_pos_shift_attention(model):
+    attention_layer_num = 0
     for name, module in reversed(model._modules.items()):
         if len(list(module.children())) > 0:
             enable_llama_pos_shift_attention(
@@ -183,6 +184,8 @@ def enable_llama_pos_shift_attention(model):
             )
 
         if isinstance(module, LlamaAttention):
+            attention_layer_num += 1
             model._modules[name].forward = types.MethodType(
                 llama_pos_shift_attention_forward, model._modules[name]
             )
+    print('\033[94m' + f"attention_layer_num={attention_layer_num}" + '\033[0m')
