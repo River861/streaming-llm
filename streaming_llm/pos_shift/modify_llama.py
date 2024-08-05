@@ -122,7 +122,8 @@ def llama_pos_shift_attention_forward(
     # 目的是为了适应多注意力头的计算, 让每个注意力头使用相同的KV tensors
     key_states = repeat_kv(key_states, self.num_key_value_groups)
     value_states = repeat_kv(value_states, self.num_key_value_groups)
-    assert(self.num_key_value_groups == self.num_heads)
+    print('\033[94m' + f"\n[llama_pos_shift_attention_forward]: num_key_value_groups={self.num_key_value_groups}" + '\033[0m')
+    # assert(self.num_key_value_groups == self.num_heads)
 
     # 计算attention score: QK^T
     attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(
