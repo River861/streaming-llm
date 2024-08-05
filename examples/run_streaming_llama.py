@@ -80,6 +80,7 @@ def streaming_inference(model, tokenizer, prompts, kv_cache=None, max_gen_len=10
             # 保留的只是第一个question的attention sink, 后面的所有QA的KV-Cache整体用滑动窗口滚动
             print('\033[94m' + f"\n[streaming_inference]: seq_len={seq_len} space_needed={space_needed}" + '\033[0m')
             past_key_values = kv_cache.evict_for_space(past_key_values, space_needed)
+            print('\033[94m' + f"\n[streaming_inference]: after eviction={(len(past_key_values), len(past_key_values[0]), (past_key_values[0][0].size(), past_key_values[0][1].size())) if past_key_values is not None else None}" + '\033[0m')
 
         past_key_values = greedy_generate(
             model, tokenizer, input_ids, past_key_values, max_gen_len=max_gen_len
