@@ -23,6 +23,7 @@ def greedy_generate(model, tokenizer, input_ids, past_key_values, max_gen_len):
         past_key_values=past_key_values,
         use_cache=True,
     )
+    # !!! past_key_values的大小是(40, 2), 40是因为model里一共有40个attention层, 2分别指key和value张量
     past_key_values = outputs.past_key_values
     # logits指模型最后一层的输出(还没有应用激活函数)
     # output.logits形状: (batch_size, seq_len, vocab_size), 表示每个时间步(token)时每个词的分数
@@ -32,7 +33,7 @@ def greedy_generate(model, tokenizer, input_ids, past_key_values, max_gen_len):
     pos = 0
     # decode阶段
     for _ in range(max_gen_len - 1):  # 每轮迭代
-        print('\033[94m' + f"greedy_generate: past_key_values len={(len(past_key_values), len(past_key_values[0])) if past_key_values is not None else None}" + '\033[0m')
+        print('\033[94m' + f"greedy_generate: past_key_values len={(len(past_key_values), len(past_key_values[0]), (past_key_values[0][0].shape, past_key_values[0][1].shape)) if past_key_values is not None else None}" + '\033[0m')
         outputs = model(
             input_ids=pred_token_idx,
             past_key_values=past_key_values,
