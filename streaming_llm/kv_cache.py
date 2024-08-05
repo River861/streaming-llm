@@ -37,15 +37,16 @@ class StartRecentKVCache:
         self.k_slice = DIM_TO_SLICE[k_seq_dim]
         self.v_slice = DIM_TO_SLICE[v_seq_dim]
 
-    def __call__(self, past_key_values):
+    def __call__(self, past_key_values):  # 这个函数就是对past_key_values进行切片
         if past_key_values is None:
             return None
-        seq_len = past_key_values[0][0].size(self.k_seq_dim)
-        if seq_len <= self.cache_size:
+        # q/k/v向量: (batch_size, num_heads, seq_len, head_dim)
+        seq_len = past_key_values[0][0].size(self.k_seq_dim)  # 这里就是取出seq_len的值
+        if seq_len <= self.cache_size:  # 没超过cache size
             return past_key_values
         return [
             [
-                torch.cat(
+                torch.cat(  # 切出attention sink和windows部分，然后拼接起来
                     [
                         self.k_slice(k, 0, self.start_size),
                         self.k_slice(k, seq_len - self.recent_size, seq_len),
@@ -63,11 +64,11 @@ class StartRecentKVCache:
             for k, v in past_key_values
         ]
 
-    def evict_for_space(self, past_key_values, num_coming):
+    def evict_for_space(self, past_key_values, num_coming):  # 其实就是从window里切掉最远的一部分，给num_coming留空间
         if past_key_values is None:
             return None
         seq_len = past_key_values[0][0].size(self.k_seq_dim)
-        if seq_len + num_coming <= self.cache_size:
+        if seq_len + num_coming <= self.cache_size:  # cache装得下时, 不需要eviction
             return past_key_values
         return [
             [
@@ -93,7 +94,7 @@ class StartRecentKVCache:
             for k, v in past_key_values
         ]
 
-    def evict_range(self, past_key_values, start, end):
+    def evict_range(self, past_key_values, start, end):  # 直接指定evict掉(attention sink和window)中间哪一部分
         if past_key_values is None:
             return None
         seq_len = past_key_values[0][0].size(self.k_seq_dim)

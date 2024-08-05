@@ -30,10 +30,10 @@ def enable_streaming_llm(model, start_size, recent_size):
         enable_falcon_pos_shift_attention(model)
     else:
         raise ValueError(f"got {model.config.model_type}")
-    kv_cache = StartRecentKVCache(  # TODO: READ
-        start_size=start_size,
-        recent_size=recent_size,
-        k_seq_dim=k_seq_dim,
+    kv_cache = StartRecentKVCache(  # TODO: READ 这个kv_cache貌似是past_key_value的处理类, 类似manager
+        start_size=start_size,   # attention sink数量
+        recent_size=recent_size, # KV-Cache windows大小
+        k_seq_dim=k_seq_dim,  # 这个貌似是指key和value向量矩阵分别在第几维是seq_len维, 这一维是可以切分的
         v_seq_dim=v_seq_dim,
     )
     return kv_cache
