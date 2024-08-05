@@ -102,7 +102,7 @@ def llama_pos_shift_attention_forward(
     # 处理k,v: 先reuse KV-Cache再进行旋转位置编码
     if past_key_value is not None:
         # reuse k, v, self_attention
-        # KV tensors: (batch_size, num_heads, q_len, head_dim)
+        # !!! KV tensors: (batch_size=1, num_heads=40, q_len=38,39,40,..., head_dim=128)
         key_states = torch.cat([past_key_value[0], key_states], dim=2)  # 在q_len维度拼接，其实就是将KV-Cache续上
         value_states = torch.cat([past_key_value[1], value_states], dim=2)
 
