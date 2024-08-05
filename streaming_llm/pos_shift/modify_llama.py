@@ -183,7 +183,7 @@ def enable_llama_pos_shift_attention(model):
             )
 
         if isinstance(module, LlamaAttention):
-            print('\033[94m' + f"attention layer!!" + '\033[0m')
+            # print('\033[94m' + f"attention layer!!" + '\033[0m')  # 测出来总共有40个attention layers
             model._modules[name].forward = types.MethodType(
                 llama_pos_shift_attention_forward, model._modules[name]
             )

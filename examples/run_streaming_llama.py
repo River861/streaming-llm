@@ -32,7 +32,7 @@ def greedy_generate(model, tokenizer, input_ids, past_key_values, max_gen_len):
     pos = 0
     # decode阶段
     for _ in range(max_gen_len - 1):  # 每轮迭代
-        # print('\033[94m' + f"greedy_generate: past_key_values type={type(past_key_values)} len={len(past_key_values) if past_key_values is not None else None}" + '\033[0m')
+        print('\033[94m' + f"greedy_generate: past_key_values len={(len(past_key_values), len(past_key_values[0])) if past_key_values is not None else None}" + '\033[0m')
         outputs = model(
             input_ids=pred_token_idx,
             past_key_values=past_key_values,
