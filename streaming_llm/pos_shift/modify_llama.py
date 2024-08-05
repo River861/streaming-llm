@@ -176,7 +176,6 @@ def llama_pos_shift_attention_forward(
 
 
 def enable_llama_pos_shift_attention(model):
-    attention_layer_num = 0
     for name, module in reversed(model._modules.items()):
         if len(list(module.children())) > 0:
             enable_llama_pos_shift_attention(
@@ -184,8 +183,7 @@ def enable_llama_pos_shift_attention(model):
             )
 
         if isinstance(module, LlamaAttention):
-            attention_layer_num += 1
+            print('\033[94m' + f"attention layer!!" + '\033[0m')
             model._modules[name].forward = types.MethodType(
                 llama_pos_shift_attention_forward, model._modules[name]
             )
-    print('\033[94m' + f"attention_layer_num={attention_layer_num}" + '\033[0m')
