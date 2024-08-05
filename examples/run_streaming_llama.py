@@ -68,15 +68,18 @@ def greedy_generate(model, tokenizer, input_ids, past_key_values, max_gen_len):
 def streaming_inference(model, tokenizer, prompts, kv_cache=None, max_gen_len=1000):  # 开始跑workloads
     past_key_values = None  # !! past_key_values是跨prompt维护的, 这样才是实现reuse
     for idx, prompt in enumerate(prompts):
-        print('\033[94m' + f"\n[streaming_inference]: past_key_values.size={(len(past_key_values), len(past_key_values[0]), (past_key_values[0][0].size(), past_key_values[0][1].size())) if past_key_values is not None else None}" + '\033[0m')
         prompt = "USER: " + prompt + "\n\nASSISTANT: "
         print("\n" + prompt, end="")
+        print('\033[94m' + f"\n[streaming_inference]: past_key_values.size={(len(past_key_values), len(past_key_values[0]), (past_key_values[0][0].size(), past_key_values[0][1].size())) if past_key_values is not None else None}" + '\033[0m')
         input_ids = tokenizer(prompt, return_tensors="pt").input_ids  # 分词, 生成每个词的word embedding向量, input_ids指每个token(在词汇表中)被映射到的唯一整数id
         input_ids = input_ids.to(model.device)  # 把input_ids传到model所在的设备上(比如GPU)
         seq_len = input_ids.shape[1]  # input_ids例子:tensor([[ 101, 7592, 1010, 2129, 2024, 2017,  102]])
         if kv_cache is not None:
             space_needed = seq_len + max_gen_len  # 需要的KV-Cache space是prompt长+max生成长度
-            past_key_values = kv_cache.evict_for_space(past_key_values, space_needed)  # TODO: 跨prompt的话, 这个eviction是不是有问题?
+            # TODO: 跨prompt的话, 这个eviction是不是有问题? 中间问答的KV-Cache会全被踢掉, 也许这就是它要的效果?
+            # 保留的只是第一个question的attention sink, 后面的所有QA的KV-Cache整体用滑动窗口滚动
+            print('\033[94m' + f"\n[streaming_inference]: seq_len={seq_len} space_needed={space_needed}" + '\033[0m')
+            past_key_values = kv_cache.evict_for_space(past_key_values, space_needed)
 
         past_key_values = greedy_generate(
             model, tokenizer, input_ids, past_key_values, max_gen_len=max_gen_len

@@ -91,7 +91,7 @@ class StartRecentKVCache:
                     dim=self.v_seq_dim,
                 ),
             ]
-            for k, v in past_key_values
+            for k, v in past_key_values  # 对于每个attention layer的KV-Cache
         ]
 
     def evict_range(self, past_key_values, start, end):  # 直接指定evict掉(attention sink和window)中间哪一部分
