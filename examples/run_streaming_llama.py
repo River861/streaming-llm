@@ -24,6 +24,7 @@ def greedy_generate(model, tokenizer, input_ids, past_key_values, max_gen_len):
         use_cache=True,
     )
     # !!! past_key_values的大小是(40, 2), 40是因为model里一共有40个attention层, 2分别指key和value张量
+    # 经过prefill后，past_key_values的shape又会继续增加prompt length
     past_key_values = outputs.past_key_values
     # logits指模型最后一层的输出(还没有应用激活函数)
     # output.logits形状: (batch_size, seq_len, vocab_size), 表示每个时间步(token)时每个词的分数
@@ -75,11 +76,12 @@ def streaming_inference(model, tokenizer, prompts, kv_cache=None, max_gen_len=10
         input_ids = input_ids.to(model.device)  # 把input_ids传到model所在的设备上(比如GPU)
         seq_len = input_ids.shape[1]  # input_ids例子:tensor([[ 101, 7592, 1010, 2129, 2024, 2017,  102]])
         if kv_cache is not None:
-            space_needed = seq_len + max_gen_len  # 需要的KV-Cache space是prompt长+max生成长度
+            space_needed = seq_len + max_gen_len  # 需要的KV-Cache space是prompt长+max生成长度 TODO: 这里多预留max_gen_len明显是偷懒做法(引入了外部碎片, 没有用vLLM技术优化)
             # TODO: 跨prompt的话, 这个eviction是不是有问题? 中间问答的KV-Cache会全被踢掉, 也许这就是它要的效果?
             # 保留的只是第一个question的attention sink, 后面的所有QA的KV-Cache整体用滑动窗口滚动
             print('\033[94m' + f"\n[streaming_inference]: seq_len={seq_len} space_needed={space_needed}" + '\033[0m')
             past_key_values = kv_cache.evict_for_space(past_key_values, space_needed)
+            # 这里KV-Cache会被截短, 经过prefill后，KV-Cache长度会变为1004 (因为evict函数预留了max_gen_len的空间)
             print('\033[94m' + f"\n[streaming_inference]: after eviction={(len(past_key_values), len(past_key_values[0]), (past_key_values[0][0].size(), past_key_values[0][1].size())) if past_key_values is not None else None}" + '\033[0m')
 
         past_key_values = greedy_generate(
