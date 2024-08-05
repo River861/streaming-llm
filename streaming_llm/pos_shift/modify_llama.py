@@ -171,6 +171,7 @@ def llama_pos_shift_attention_forward(
     if not output_attentions:
         attn_weights = None
 
+    print('\033[94m' + f"greedy_generate: past_key_value type={type(past_key_value)} len={len(past_key_value) if past_key_value is not None else None}" + '\033[0m')
     return attn_output, attn_weights, past_key_value  # (attention层输出, attention score, 前面tokens的KV tensors)
 
 
