@@ -122,6 +122,7 @@ def llama_pos_shift_attention_forward(
     # 目的是为了适应多注意力头的计算, 让每个注意力头使用相同的KV tensors
     key_states = repeat_kv(key_states, self.num_key_value_groups)
     value_states = repeat_kv(value_states, self.num_key_value_groups)
+    assert(self.num_key_value_groups == self.num_heads)
 
     # 计算attention score: QK^T
     attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(
@@ -155,8 +156,9 @@ def llama_pos_shift_attention_forward(
         )
 
     attn_output = attn_output.transpose(1, 2).contiguous()  # contiguous是将tensor中的数据变得内存连续(因为转置/切片会让数据不连续)
-    attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)  # TODO: hidden_size应该就等于head_dim*self.num_heads
-    print('\033[94m' + f"\n[llama_pos_shift_attention_forward]: q_len={q_len} hidden_size={self.hidden_size} head_dim={self.head_dim} num_heads={self.num_heads}" + '\033[0m')
+    attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)  # hidden_size应该就等于head_dim*self.num_heads
+    # hidden_size=5120, head_dim=128, num_heads=40
+    # print('\033[94m' + f"\n[llama_pos_shift_attention_forward]: q_len={q_len} hidden_size={self.hidden_size} head_dim={self.head_dim} num_heads={self.num_heads}" + '\033[0m')
     assert(self.hidden_size == self.head_dim * self.num_heads)
 
     # 多GPU情形处理ouput的张量并行

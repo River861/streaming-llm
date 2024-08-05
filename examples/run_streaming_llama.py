@@ -76,7 +76,7 @@ def streaming_inference(model, tokenizer, prompts, kv_cache=None, max_gen_len=10
         input_ids = input_ids.to(model.device)  # 把input_ids传到model所在的设备上(比如GPU)
         seq_len = input_ids.shape[1]  # input_ids例子:tensor([[ 101, 7592, 1010, 2129, 2024, 2017,  102]])
         if kv_cache is not None:
-            space_needed = seq_len + max_gen_len  # 需要的KV-Cache space是prompt长+max生成长度 TODO: 这里多预留max_gen_len明显是偷懒做法(引入了外部碎片, 没有用vLLM技术优化)
+            space_needed = seq_len + max_gen_len  # 需要的KV-Cache space是prompt长+max生成长度, 这里多预留max_gen_len明显是偷懒做法(引入了外部碎片, 没有用vLLM技术优化)
             # 思考: 跨prompt的话, 这个eviction是不是有问题? 中间问答的KV-Cache会全被踢掉, 也许这就是它要的效果?
             # 保留的只是第一个question的attention sink, 后面的所有QA的KV-Cache整体用滑动窗口滚动
             # print('\033[94m' + f"\n[streaming_inference]: seq_len={seq_len} space_needed={space_needed}" + '\033[0m')
