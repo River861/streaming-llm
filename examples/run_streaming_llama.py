@@ -32,6 +32,7 @@ def greedy_generate(model, tokenizer, input_ids, past_key_values, max_gen_len):
     pos = 0
     # decode阶段
     for _ in range(max_gen_len - 1):  # 每轮迭代
+        print('\033[94m' + f"greedy_generate: past_key_values type={type(past_key_values)} len={len(past_key_values) if past_key_values is not None else None}" + '\033[0m')
         outputs = model(
             input_ids=pred_token_idx,
             past_key_values=past_key_values,
@@ -66,7 +67,7 @@ def greedy_generate(model, tokenizer, input_ids, past_key_values, max_gen_len):
 def streaming_inference(model, tokenizer, prompts, kv_cache=None, max_gen_len=1000):  # 开始跑workloads
     past_key_values = None  # !! past_key_values是跨prompt维护的, 这样才是实现reuse
     for idx, prompt in enumerate(prompts):
-        print('\033[94m' + f"Learn: past_key_values={len(past_key_values) if past_key_values is not None else None}" + '\033[0m')
+        print('\033[94m' + f"streaming_inference: past_key_values type={type(past_key_values)} len={len(past_key_values) if past_key_values is not None else None}" + '\033[0m')
         prompt = "USER: " + prompt + "\n\nASSISTANT: "
         print("\n" + prompt, end="")
         input_ids = tokenizer(prompt, return_tensors="pt").input_ids  # 分词, 生成每个词的word embedding向量, input_ids指每个token(在词汇表中)被映射到的唯一整数id
