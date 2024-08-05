@@ -118,12 +118,10 @@ def llama_pos_shift_attention_forward(
     ###
 
     # repeat k/v heads if n_kv_heads < n_heads
-    # repeat_kv的作用是让KV tensors在batch_size那一维度进行复制, 复制的数目为num_key_value_groups(就是attention header的数目)
-    # 目的是为了适应多注意力头的计算, 让每个注意力头使用相同的KV tensors
+    # 有时模型可能会使用不同数量的键值头和注意力头, 这就需要对键和值进行重复以匹配注意力头的数量, 这里num_key_value_groups=1, 因为不需要重复
     key_states = repeat_kv(key_states, self.num_key_value_groups)
     value_states = repeat_kv(value_states, self.num_key_value_groups)
-    print('\033[94m' + f"\n[llama_pos_shift_attention_forward]: num_key_value_groups={self.num_key_value_groups}" + '\033[0m')
-    # assert(self.num_key_value_groups == self.num_heads)
+    # print('\033[94m' + f"\n[llama_pos_shift_attention_forward]: num_key_value_groups={self.num_key_value_groups}" + '\033[0m')
 
     # 计算attention score: QK^T
     attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(
