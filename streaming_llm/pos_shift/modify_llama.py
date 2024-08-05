@@ -112,7 +112,7 @@ def llama_pos_shift_attention_forward(
     # 在prefill阶段, key_position_ids其实就等于position_ids; 在decode阶段, position_ids只有decode的那个token的位置id，key_position_id还是完整的[1..kv_seq_len]对应的token的位置ids
     key_position_ids = torch.arange(kv_seq_len, device=position_ids.device).unsqueeze(0)
     key_states = apply_rotary_pos_emb_single(key_states, cos, sin, key_position_ids)
-    # 其实就是query和keys的长度不一样导致的 TODO: 它们末位token的位置id应该是相等的
+    # 其实就是query和keys的长度不一样导致的, 它们末位token的位置id应该是相等的
     assert(position_ids[0][-1] == key_position_ids[0][-1])
     # print('\033[94m' + f"\n[llama_pos_shift_attention_forward]: position_ids={position_ids} \nkey_position_ids={key_position_ids}" + '\033[0m')
     ###
@@ -155,7 +155,9 @@ def llama_pos_shift_attention_forward(
         )
 
     attn_output = attn_output.transpose(1, 2).contiguous()  # contiguous是将tensor中的数据变得内存连续(因为转置/切片会让数据不连续)
-    attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)  # TODO: hidden_size应该就等于head_dim
+    attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)  # TODO: hidden_size应该就等于head_dim*self.num_heads
+    print('\033[94m' + f"\n[llama_pos_shift_attention_forward]: q_len={q_len} hidden_size={self.hidden_size} head_dim={self.head_dim} num_heads={self.num_heads}" + '\033[0m')
+    assert(self.hidden_size == self.head_dim * self.num_heads)
 
     # 多GPU情形处理ouput的张量并行
     if self.config.pretraining_tp > 1:
