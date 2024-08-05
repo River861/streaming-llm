@@ -109,9 +109,12 @@ def llama_pos_shift_attention_forward(
     past_key_value = (key_states, value_states) if use_cache else None  # 这个past_key_value就是在迭代过程中一直维护的KV-Cache
 
     ### Shift Pos: key pos is the pos in cache
-    key_position_ids = torch.arange(kv_seq_len, device=position_ids.device).unsqueeze(0)  # TODO 这个key_position_ids其实就等于position_ids?
+    # 在prefill阶段, key_position_ids其实就等于position_ids; 在decode阶段, position_ids只有decode的那个token的位置id，key_position_id还是完整的[1..kv_seq_len]对应的token的位置ids
+    key_position_ids = torch.arange(kv_seq_len, device=position_ids.device).unsqueeze(0)
     key_states = apply_rotary_pos_emb_single(key_states, cos, sin, key_position_ids)
-    print('\033[94m' + f"\n[llama_pos_shift_attention_forward]: position_ids={position_ids} \nkey_position_ids={key_position_ids}" + '\033[0m')
+    # 其实就是query和keys的长度不一样导致的 TODO: 它们末位token的位置id应该是相等的
+    assert(position_ids[0][-1] == key_position_ids[0][-1])
+    # print('\033[94m' + f"\n[llama_pos_shift_attention_forward]: position_ids={position_ids} \nkey_position_ids={key_position_ids}" + '\033[0m')
     ###
 
     # repeat k/v heads if n_kv_heads < n_heads
